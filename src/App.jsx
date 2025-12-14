@@ -51,6 +51,7 @@ const GameAIChatContent = () => {
 
   // ✅ 백엔드 주소 (프로덕션 URL)
   const API_BASE_URL = 'https://api.zask.kr/api';
+  const GOOGLE_CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID'; // Vercel 환경 변수에서 가져올 예정
 
   // ✨ [초기화] 브라우저 저장소에서 채팅 기록 불러오기
   useEffect(() => {
@@ -103,19 +104,6 @@ const GameAIChatContent = () => {
       console.error('피드백 전송 에러:', error);
       alert('서버와 연결할 수 없습니다.');
     }
-  };
-
-  // 로그인 함수
-  const handleLogin = async () => {
-    // 백엔드의 NextAuth Google 로그인으로 리다이렉트
-    const backendURL = 'https://api.zask.kr';
-    window.location.href = `${backendURL}/api/auth/signin/google?callbackUrl=${encodeURIComponent(window.location.origin)}`;
-  };
-
-  // 로그아웃 함수
-  const handleLogout = () => {
-    setSession(null);
-    localStorage.removeItem('zask_session');
   };
 
   const handleNewChat = () => {
@@ -227,32 +215,25 @@ const GameAIChatContent = () => {
     if (activeChatId === id) handleNewChat();
   };
 
-  // 로딩 중 화면 표시
-  if (isSessionLoading) {
-    return (
-      <div className="flex h-screen w-screen items-center justify-center bg-white">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mb-4"></div>
-          <p className="text-gray-600">로딩 중...</p>
-        </div>
-      </div>
-    );
-  }
+  // ✨ Google 로그인 함수
+  const handleLogin = async () => {
+    // 백엔드의 NextAuth Google 로그인으로 리다이렉트
+    const backendURL = 'https://api.zask.kr';
+    window.location.href = `${backendURL}/api/auth/signin/google?callbackUrl=${encodeURIComponent(window.location.origin)}`;
+  };
+
+  // ✨ 로그아웃 함수
+  const handleLogout = () => {
+    setSession(null);
+    localStorage.removeItem('zask_session');
+  };
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-white text-gray-800 font-sans">
-      {/* 모바일 오버레이 배경 */}
-      {isSidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black/40 md:hidden z-30"
-          onClick={() => setIsSidebarOpen(false)}
-        />
-      )}
       
       {/* --- 사이드바 --- */}
       <aside 
-        className={`bg-[#f9f9f9] border-r border-gray-200 transition-all duration-300 flex flex-col shrink-0 overflow-hidden relative
-          ${isSidebarOpen ? 'fixed md:relative inset-0 z-40 md:z-auto w-full md:w-[280px]' : 'hidden md:flex md:w-[280px]'}`}
+        className={`${isSidebarOpen ? 'w-[280px]' : 'w-0'} bg-[#f9f9f9] border-r border-gray-200 transition-all duration-300 flex flex-col shrink-0 overflow-hidden relative`}
       >
         <div className="p-4 pt-4">
           <button 
@@ -381,7 +362,14 @@ const GameAIChatContent = () => {
         </header>
 
         {/* 채팅 화면 */}
-        {messages.length === 0 ? (
+        {isSessionLoading ? (
+          <div className="flex h-screen w-screen items-center justify-center bg-white">
+            <div className="text-center">
+              <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mb-4"></div>
+              <p className="text-gray-600">로딩 중...</p>
+            </div>
+          </div>
+        ) : messages.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center px-4 pb-10">
             <div className="mb-6 animate-fade-in-up">
               <div className="relative group cursor-default">
@@ -513,5 +501,10 @@ const GameAIChatContent = () => {
 // src/App.jsx 맨 밑부분
 
 export default function App() {
-  return <GameAIChatContent />;
+  return (
+    // 👇 여기를 유저님 원하시던 도메인으로 통일!
+    <SessionProvider basePath="https://api.zask.kr/api/auth">
+      <GameAIChatContent />
+    </SessionProvider>
+  );
 }
