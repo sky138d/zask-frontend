@@ -225,16 +225,12 @@ const GameAIChatContent = () => {
     if (activeChatId === id) handleNewChat();
   };
 
-  // ✨ 간단한 임시 로그인 (테스트용)
+  // ✨ Google 로그인 함수
   const handleLogin = () => {
-    const demoUser = {
-      name: '테스트 유저',
-      email: 'test@example.com',
-      image: 'https://via.placeholder.com/40'
-    };
-    setSession(demoUser);
-    localStorage.setItem('zask_session', JSON.stringify(demoUser));
-    alert('테스트 로그인 되었습니다!');
+    // 백엔드의 NextAuth Google 로그인으로 리다이렉트
+    const backendURL = 'https://api.zask.kr';
+    const callbackUrl = `${window.location.origin}?loginSuccess=true`;
+    window.location.href = `${backendURL}/api/auth/signin/google?callbackUrl=${encodeURIComponent(callbackUrl)}`;
   };
 
   // ✨ 로그인 콜백 확인 (URL 쿼리 파라미터 체크)
