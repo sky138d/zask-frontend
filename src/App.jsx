@@ -253,47 +253,39 @@ const GameAIChatContent = () => {
     window.location.href = 'https://api.zask.kr/api/auth/signin/google';
   };
 
-  // ✨ 로그인 콜백 확인 (URL 쿼리 파라미터 체크)
+  // ✨ 로그인 후 콜백 확인 및 세션 저장
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('loginSuccess') === 'true') {
-      console.log('로그인 콜백 감지됨');
-      
-      // 백엔드에서 세션 정보 가져오기
-      const fetchSession = async () => {
-        try {
-          console.log('세션 정보 요청 중...');
-          const response = await fetch('https://api.zask.kr/api/auth/session', {
-            credentials: 'include', // 쿠키 포함
-          });
-          console.log('응답 상태:', response.status);
-          
-          if (response.ok) {
-            const sessionData = await response.json();
-            console.log('세션 데이터:', sessionData);
-            
-            if (sessionData?.user) {
-              setSession(sessionData.user);
-              localStorage.setItem('zask_session', JSON.stringify(sessionData.user));
-              console.log('세션 저장 완료:', sessionData.user);
-            } else {
-              console.error('세션에 user 정보가 없습니다.');
-            }
-          } else {
-            console.error('세션 요청 실패:', response.status);
+    // 페이지 로드 시 백엔드에서 현재 세션 확인
+    const checkSession = async () => {
+      try {
+        const response = await fetch('https://api.zask.kr/api/auth/session', {
+          method: 'GET',
+          credentials: 'include', // 쿠키 포함
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+        
+        if (response.ok) {
+          const sessionData = await response.json();
+          if (sessionData?.user) {
+            console.log('세션 확인됨:', sessionData.user);
+            setSession(sessionData.user);
+            localStorage.setItem('zask_session', JSON.stringify(sessionData.user));
           }
-        } catch (error) {
-          console.error('세션 로드 실패:', error);
         }
-      };
-      
-      fetchSession();
-      
-      // URL에서 쿼리 제거
-      setTimeout(() => {
-        window.history.replaceState({}, document.title, window.location.pathname);
-      }, 500);
-    }
+      } catch (error) {
+        console.error('세션 확인 실패:', error);
+      }
+    };
+
+    // 초기 로드와 로그인 후 (URL 파라미터 변경 감지)
+    checkSession();
+    
+    // 5초마다 세션 확인 (로그인 완료 후 자동 감지)
+    const interval = setInterval(checkSession, 5000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   // ✨ 로그아웃 함수
