@@ -40,7 +40,7 @@ const GameAIChatContent = () => {
   const [chatHistory, setChatHistory] = useState([]);
   const [activeChatId, setActiveChatId] = useState(null);
   const [inputText, setInputText] = useState('');
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 768);
   const [isLoading, setIsLoading] = useState(false);
   
   // ✨ 모달 상태 관리
@@ -241,10 +241,18 @@ const GameAIChatContent = () => {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-white text-gray-800 font-sans">
+      {/* 모바일 오버레이 배경 */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/40 md:hidden z-30"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
       
       {/* --- 사이드바 --- */}
       <aside 
-        className={`${isSidebarOpen ? 'w-[280px]' : 'w-0'} bg-[#f9f9f9] border-r border-gray-200 transition-all duration-300 flex flex-col shrink-0 overflow-hidden relative`}
+        className={`bg-[#f9f9f9] border-r border-gray-200 transition-all duration-300 flex flex-col shrink-0 overflow-hidden relative
+          ${isSidebarOpen ? 'fixed md:relative inset-0 z-40 md:z-auto w-full md:w-[280px]' : 'hidden md:flex md:w-[280px]'}`}
       >
         <div className="p-4 pt-4">
           <button 
