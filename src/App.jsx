@@ -49,8 +49,8 @@ const GameAIChatContent = () => {
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
 
-  // ✅ 백엔드 주소 (프로덕션 URL)
-  const API_BASE_URL = 'https://api.zask.kr/api';
+  // ✅ 백엔드 주소 (Vercel 직접 URL)
+  const API_BASE_URL = 'https://zask-backend-git-main-sky138s-projects.vercel.app/api';
 
   // ✨ [초기화] 브라우저 저장소에서 채팅 기록 불러오기
   useEffect(() => {
@@ -108,7 +108,7 @@ const GameAIChatContent = () => {
   // 로그인 함수
   const handleLogin = async () => {
     // 백엔드의 NextAuth Google 로그인으로 리다이렉트
-    const backendURL = 'https://api.zask.kr';
+    const backendURL = 'https://zask-backend-git-main-sky138s-projects.vercel.app';
     window.location.href = `${backendURL}/api/auth/signin/google?callbackUrl=${encodeURIComponent(window.location.origin)}`;
   };
 
