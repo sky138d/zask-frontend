@@ -228,9 +228,7 @@ const GameAIChatContent = () => {
   // ✨ Google 로그인 함수
   const handleLogin = () => {
     // 백엔드의 NextAuth Google 로그인으로 리다이렉트
-    const backendURL = 'https://api.zask.kr';
-    const callbackUrl = `${window.location.origin}?loginSuccess=true`;
-    window.location.href = `${backendURL}/api/auth/signin/google?callbackUrl=${encodeURIComponent(callbackUrl)}`;
+    window.location.href = 'https://api.zask.kr/api/auth/signin/google';
   };
 
   // ✨ 로그인 콜백 확인 (URL 쿼리 파라미터 체크)
