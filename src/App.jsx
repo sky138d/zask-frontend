@@ -227,19 +227,7 @@ const GameAIChatContent = () => {
 
   // ✨ Google 로그인 함수
   const handleLogin = () => {
-    // 테스트용 임시 로그인 (로컬/빠른 테스트)
-    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-      const demoUser = {
-        name: '테스트 사용자',
-        email: 'test@example.com',
-        image: null
-      };
-      setSession(demoUser);
-      localStorage.setItem('zask_session', JSON.stringify(demoUser));
-      return;
-    }
-    
-    // 프로덕션: 실제 Google OAuth
+    // 백엔드의 NextAuth Google 로그인으로 리다이렉트
     const backendURL = 'https://api.zask.kr';
     const callbackUrl = `${window.location.origin}?loginSuccess=true`;
     window.location.href = `${backendURL}/api/auth/signin/google?callbackUrl=${encodeURIComponent(callbackUrl)}`;
