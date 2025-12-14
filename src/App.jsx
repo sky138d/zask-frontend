@@ -279,13 +279,16 @@ const GameAIChatContent = () => {
       }
     };
 
-    // 초기 로드와 로그인 후 (URL 파라미터 변경 감지)
+    // 초기 로드와 로그인 후 (또는 페이지가 다시 보여질 때) 세션 확인
     checkSession();
-    
-    // 5초마다 세션 확인 (로그인 완료 후 자동 감지)
-    const interval = setInterval(checkSession, 5000);
-    
-    return () => clearInterval(interval);
+
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') checkSession();
+    };
+
+    window.addEventListener('visibilitychange', onVisible);
+
+    return () => window.removeEventListener('visibilitychange', onVisible);
   }, []);
 
   // ✨ 로그아웃 함수
