@@ -63,15 +63,37 @@ const GameAIChatContent = () => {
       }
     }
     
-    // 세션 정보 로드
-    const savedSession = localStorage.getItem('zask_session');
-    if (savedSession) {
-      try {
-        setSession(JSON.parse(savedSession));
-      } catch (e) {
-        console.error('세션 로드 실패', e);
+    // 세션 정보 로드 (localStorage 또는 백엔드에서)
+    const loadSession = async () => {
+      // 1. localStorage에서 먼저 확인
+      const savedSession = localStorage.getItem('zask_session');
+      if (savedSession) {
+        try {
+          setSession(JSON.parse(savedSession));
+          return;
+        } catch (e) {
+          console.error('저장된 세션 로드 실패', e);
+        }
       }
-    }
+      
+      // 2. 백엔드에서 세션 확인
+      try {
+        const response = await fetch('https://api.zask.kr/api/auth/session', {
+          credentials: 'include',
+        });
+        if (response.ok) {
+          const sessionData = await response.json();
+          if (sessionData?.user) {
+            setSession(sessionData.user);
+            localStorage.setItem('zask_session', JSON.stringify(sessionData.user));
+          }
+        }
+      } catch (error) {
+        console.error('백엔드 세션 로드 실패:', error);
+      }
+    };
+    
+    loadSession();
 
     // 화면 크기 감지: 데스크톱이면 사이드바 열기
     const handleResize = () => {
@@ -235,27 +257,42 @@ const GameAIChatContent = () => {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('loginSuccess') === 'true') {
+      console.log('로그인 콜백 감지됨');
+      
       // 백엔드에서 세션 정보 가져오기
       const fetchSession = async () => {
         try {
+          console.log('세션 정보 요청 중...');
           const response = await fetch('https://api.zask.kr/api/auth/session', {
             credentials: 'include', // 쿠키 포함
           });
+          console.log('응답 상태:', response.status);
+          
           if (response.ok) {
             const sessionData = await response.json();
-            if (sessionData.user) {
+            console.log('세션 데이터:', sessionData);
+            
+            if (sessionData?.user) {
               setSession(sessionData.user);
               localStorage.setItem('zask_session', JSON.stringify(sessionData.user));
+              console.log('세션 저장 완료:', sessionData.user);
+            } else {
+              console.error('세션에 user 정보가 없습니다.');
             }
+          } else {
+            console.error('세션 요청 실패:', response.status);
           }
         } catch (error) {
           console.error('세션 로드 실패:', error);
         }
       };
+      
       fetchSession();
       
       // URL에서 쿼리 제거
-      window.history.replaceState({}, document.title, window.location.pathname);
+      setTimeout(() => {
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }, 500);
     }
   }, []);
 
