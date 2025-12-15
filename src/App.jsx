@@ -313,9 +313,6 @@ const GameAIChatContent = () => {
         const response = await fetch('https://api.zask.kr/api/auth/session', {
           method: 'GET',
           credentials: 'include', // 쿠키 포함
-          headers: {
-            'Content-Type': 'application/json',
-          },
         });
         
         if (response.ok) {
@@ -325,9 +322,30 @@ const GameAIChatContent = () => {
             setSession(sessionData.user);
             localStorage.setItem('zask_session', JSON.stringify(sessionData.user));
           }
+        } else {
+          // 백엔드 실패 시 localStorage에서 로드
+          const savedSession = localStorage.getItem('zask_session');
+          if (savedSession) {
+            try {
+              const parsed = JSON.parse(savedSession);
+              setSession(parsed);
+            } catch (e) {
+              console.error('localStorage 세션 파싱 실패:', e);
+            }
+          }
         }
       } catch (error) {
         console.error('세션 확인 실패:', error);
+        // 에러 발생 시에도 localStorage에서 로드
+        const savedSession = localStorage.getItem('zask_session');
+        if (savedSession) {
+          try {
+            const parsed = JSON.parse(savedSession);
+            setSession(parsed);
+          } catch (e) {
+            console.error('localStorage 세션 파싱 실패:', e);
+          }
+        }
       }
     };
 
