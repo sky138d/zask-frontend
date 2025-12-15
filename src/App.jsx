@@ -301,8 +301,8 @@ const GameAIChatContent = () => {
 
   // ✨ Google 로그인 함수
   const handleLogin = () => {
-    // 백엔드의 NextAuth Google 로그인으로 리다이렉트
-    window.location.href = 'https://api.zask.kr/api/auth/signin/google';
+    const callbackUrl = window.location.origin; // 로그인 후 프론트로 복귀
+    window.location.href = `https://api.zask.kr/api/auth/signin/google?callbackUrl=${encodeURIComponent(callbackUrl)}`;
   };
 
   // ✨ 로그인 후 콜백 확인 및 세션 저장
@@ -364,15 +364,17 @@ const GameAIChatContent = () => {
   // ✨ 로그아웃 함수
   const handleLogout = async () => {
     try {
-      await fetch('https://api.zask.kr/api/auth/signout', {
-        method: 'POST',
-        credentials: 'include',
-      });
+      const callbackUrl = window.location.origin; // 로그아웃 후 프론트로 복귀
+      // 세션/쿠키 정리를 위해 전체 리다이렉트 방식 사용
+      localStorage.removeItem('zask_session');
+      setSession(null);
+      window.location.href = `https://api.zask.kr/api/auth/signout?callbackUrl=${encodeURIComponent(callbackUrl)}`;
     } catch (error) {
       console.error('로그아웃 실패:', error);
+      // 실패 시 로컬 상태만 초기화
+      setSession(null);
+      localStorage.removeItem('zask_session');
     }
-    setSession(null);
-    localStorage.removeItem('zask_session');
   };
 
   return (
@@ -440,16 +442,16 @@ const GameAIChatContent = () => {
             // ✅ 로그인 상태
             <>
               <div className="flex items-center gap-3 p-3 bg-white border border-gray-200 rounded-xl mb-2">
-                {session.user.image ? (
-                  <img src={session.user.image} alt="Profile" className="w-8 h-8 rounded-full" />
+                {session?.image ? (
+                  <img src={session?.image} alt="Profile" className="w-8 h-8 rounded-full" />
                 ) : (
                   <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold">
-                    {session.user.name?.[0] || 'U'}
+                    {session?.name?.[0] || 'U'}
                   </div>
                 )}
                 <div className="flex flex-col overflow-hidden">
-                  <span className="text-sm font-bold truncate">{session.user.name}</span>
-                  <span className="text-xs text-gray-500 truncate">{session.user.email}</span>
+                  <span className="text-sm font-bold truncate">{session?.name}</span>
+                  <span className="text-xs text-gray-500 truncate">{session?.email}</span>
                 </div>
               </div>
 
