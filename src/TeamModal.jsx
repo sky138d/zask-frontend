@@ -77,16 +77,32 @@ export default function TeamModal({ isOpen, onClose, teamData, setTeamData, onSa
           <div className="space-y-3">
             <h3 className="font-bold text-gray-800 text-lg flex items-center gap-2">⚾ 투수 라인업</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {pitcherPositions.map(pos => (
-                <PlayerCard
-                  key={pos}
-                  position={pos}
-                  player={teamData.players[pos] || {}}
-                  onPlayerChange={handlePlayerChange}
-                  isExpanded={expandedPosition === pos}
-                  onToggle={() => setExpandedPosition(expandedPosition === pos ? null : pos)}
-                />
-              ))}
+              {/* 좌측: 선발투수 SP1~5 */}
+              <div className="space-y-3">
+                {['SP1', 'SP2', 'SP3', 'SP4', 'SP5'].map(pos => (
+                  <PlayerCard
+                    key={pos}
+                    position={pos}
+                    player={teamData.players[pos] || {}}
+                    onPlayerChange={handlePlayerChange}
+                    isExpanded={expandedPosition === pos}
+                    onToggle={() => setExpandedPosition(expandedPosition === pos ? null : pos)}
+                  />
+                ))}
+              </div>
+              {/* 우측: 불펜투수 RP1~6 */}
+              <div className="space-y-3">
+                {['RP1', 'RP2', 'RP3', 'RP4', 'RP5', 'RP6'].map(pos => (
+                  <PlayerCard
+                    key={pos}
+                    position={pos}
+                    player={teamData.players[pos] || {}}
+                    onPlayerChange={handlePlayerChange}
+                    isExpanded={expandedPosition === pos}
+                    onToggle={() => setExpandedPosition(expandedPosition === pos ? null : pos)}
+                  />
+                ))}
+              </div>
             </div>
           </div>
 
