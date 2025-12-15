@@ -501,42 +501,14 @@ const GameAIChatContent = () => {
                 <Menu size={24} />
               </button>
             )}
-            <div className="flex items-center gap-3 select-none">
+            <div className="flex items-center gap-2 select-none">
               <span className="text-xl font-bold text-gray-800 tracking-tight flex items-center gap-1">
                 ZASK <span className="text-indigo-600 text-2xl">.</span>
               </span>
-              {session && (
-                <span className="text-xs font-semibold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full">
-                  {session.user.name}
-                </span>
-              )}
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            {session ? (
-              <button 
-                onClick={() => handleLogout()}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-              >
-                <LogOut size={16} />
-                로그아웃
-              </button>
-            ) : (
-              <button 
-                onClick={() => handleLogin()}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-              >
-                <LogIn size={16} />
-                로그인
-              </button>
-            )}
-            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 hover:opacity-90 cursor-pointer flex items-center justify-center text-white font-bold text-sm shadow-md transition-all shrink-0">
-              {session?.user?.image ? (
-                <img src={session.user.image} alt="Profile" className="w-9 h-9 rounded-full object-cover" />
-              ) : (
-                'Z'
-              )}
-            </div>
+          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 hover:opacity-90 cursor-pointer flex items-center justify-center text-white font-bold text-sm shadow-md transition-all">
+            Z
           </div>
         </header>
 
