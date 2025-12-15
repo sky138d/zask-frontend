@@ -44,6 +44,58 @@ const GameAIChatContent = () => {
   
   // ✨ 모달 상태 관리
   const [isTeamModalOpen, setIsTeamModalOpen] = useState(false);
+  const [teamData, setTeamData] = useState({
+    pitchers: { starting: [], relief: [] },
+    batters: { lineup: [], bench: [] }
+  });
+
+  // 팀 데이터 로드 (백엔드에서)
+  useEffect(() => {
+    if (isTeamModalOpen && session?.user?.email) {
+      fetchTeamData();
+    }
+  }, [isTeamModalOpen, session]);
+
+  // 백엔드에서 팀 데이터 가져오기
+  const fetchTeamData = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/user/team`, {
+        credentials: 'include',
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.team) {
+          setTeamData(data.team);
+        }
+      }
+    } catch (error) {
+      console.error('팀 데이터 로드 실패:', error);
+    }
+  };
+
+  // 팀 데이터 저장
+  const saveTeamData = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/user/team`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          totalSetDeckScore: parseInt(teamScore) || 0,
+          totalOvr: teamOvr || null,
+        }),
+      });
+      if (response.ok) {
+        alert('팀 정보가 저장되었습니다!');
+        setIsTeamModalOpen(false);
+      } else {
+        alert('저장 실패: ' + response.statusText);
+      }
+    } catch (error) {
+      console.error('팀 데이터 저장 실패:', error);
+      alert('저장 중 오류가 발생했습니다.');
+    }
+  };
   
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
@@ -177,8 +229,8 @@ const GameAIChatContent = () => {
     const tempAiId = Date.now() + 1;
     setMessages(prev => [...prev, { 
       id: tempAiId, 
-      sender: 'ai', 
-      text: 'ZASK AI가 분석 중입니다... 📡' 
+      sender: 'AI', 
+      text: '분석 중입니다... 📡' 
     }]);
 
     try {
@@ -546,24 +598,247 @@ const GameAIChatContent = () => {
                   </div>
                 </div>
                 
-                {/* 🚧 여기에 나중에 입력 폼이 들어갑니다 */}
+                {/* 팀 정보 입력 폼 */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                   <div className="border-2 border-dashed border-gray-200 p-8 rounded-xl flex flex-col items-center justify-center h-48 text-gray-400 hover:border-indigo-300 hover:bg-indigo-50/30 transition-all cursor-pointer group">
-                      <span className="text-4xl mb-2 group-hover:scale-110 transition-transform">⚾️</span>
-                      <span className="font-medium">투수 라인업 (선발/불펜)</span>
-                      <span className="text-xs mt-1 text-gray-300">데이터 입력 폼 준비중...</span>
-                   </div>
-                   <div className="border-2 border-dashed border-gray-200 p-8 rounded-xl flex flex-col items-center justify-center h-48 text-gray-400 hover:border-indigo-300 hover:bg-indigo-50/30 transition-all cursor-pointer group">
-                      <span className="text-4xl mb-2 group-hover:scale-110 transition-transform">🦁</span>
-                      <span className="font-medium">타자 라인업 (선발/후보)</span>
-                      <span className="text-xs mt-1 text-gray-300">데이터 입력 폼 준비중...</span>
-                   </div>
+                  {/* 투수 라인업 */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                      <span className="text-2xl">⚾️</span> 투수 라인업
+                    </h3>
+                    
+                    {/* 선발 투수 */}
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium text-gray-700">선발 투수</label>
+                      {teamData.pitchers.starting.map((pitcher, index) => (
+                        <div key={index} className="flex gap-2">
+                          <input
+                            type="text"
+                            value={pitcher}
+                            onChange={(e) => {
+                              const newStarting = [...teamData.pitchers.starting];
+                              newStarting[index] = e.target.value;
+                              setTeamData({
+                                ...teamData,
+                                pitchers: { ...teamData.pitchers, starting: newStarting }
+                              });
+                            }}
+                            placeholder={`선발 투수 ${index + 1}`}
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                          />
+                          <button
+                            onClick={() => {
+                              const newStarting = teamData.pitchers.starting.filter((_, i) => i !== index);
+                              setTeamData({
+                                ...teamData,
+                                pitchers: { ...teamData.pitchers, starting: newStarting }
+                              });
+                            }}
+                            className="px-2 py-2 text-red-500 hover:bg-red-50 rounded-lg"
+                          >
+                            <X size={16} />
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        onClick={() => {
+                          setTeamData({
+                            ...teamData,
+                            pitchers: {
+                              ...teamData.pitchers,
+                              starting: [...teamData.pitchers.starting, '']
+                            }
+                          });
+                        }}
+                        className="w-full py-2 border-2 border-dashed border-gray-300 text-gray-500 rounded-lg hover:border-indigo-300 hover:text-indigo-600 transition-colors"
+                      >
+                        + 선발 투수 추가
+                      </button>
+                    </div>
+                    
+                    {/* 불펜 투수 */}
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium text-gray-700">불펜 투수</label>
+                      {teamData.pitchers.relief.map((pitcher, index) => (
+                        <div key={index} className="flex gap-2">
+                          <input
+                            type="text"
+                            value={pitcher}
+                            onChange={(e) => {
+                              const newRelief = [...teamData.pitchers.relief];
+                              newRelief[index] = e.target.value;
+                              setTeamData({
+                                ...teamData,
+                                pitchers: { ...teamData.pitchers, relief: newRelief }
+                              });
+                            }}
+                            placeholder={`불펜 투수 ${index + 1}`}
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                          />
+                          <button
+                            onClick={() => {
+                              const newRelief = teamData.pitchers.relief.filter((_, i) => i !== index);
+                              setTeamData({
+                                ...teamData,
+                                pitchers: { ...teamData.pitchers, relief: newRelief }
+                              });
+                            }}
+                            className="px-2 py-2 text-red-500 hover:bg-red-50 rounded-lg"
+                          >
+                            <X size={16} />
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        onClick={() => {
+                          setTeamData({
+                            ...teamData,
+                            pitchers: {
+                              ...teamData.pitchers,
+                              relief: [...teamData.pitchers.relief, '']
+                            }
+                          });
+                        }}
+                        className="w-full py-2 border-2 border-dashed border-gray-300 text-gray-500 rounded-lg hover:border-indigo-300 hover:text-indigo-600 transition-colors"
+                      >
+                        + 불펜 투수 추가
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {/* 타자 라인업 */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                      <span className="text-2xl">🦁</span> 타자 라인업
+                    </h3>
+                    
+                    {/* 선발 타자 */}
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium text-gray-700">선발 타자</label>
+                      {teamData.batters.lineup.map((batter, index) => (
+                        <div key={index} className="flex gap-2">
+                          <input
+                            type="text"
+                            value={batter}
+                            onChange={(e) => {
+                              const newLineup = [...teamData.batters.lineup];
+                              newLineup[index] = e.target.value;
+                              setTeamData({
+                                ...teamData,
+                                batters: { ...teamData.batters, lineup: newLineup }
+                              });
+                            }}
+                            placeholder={`타자 ${index + 1}`}
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                          />
+                          <button
+                            onClick={() => {
+                              const newLineup = teamData.batters.lineup.filter((_, i) => i !== index);
+                              setTeamData({
+                                ...teamData,
+                                batters: { ...teamData.batters, lineup: newLineup }
+                              });
+                            }}
+                            className="px-2 py-2 text-red-500 hover:bg-red-50 rounded-lg"
+                          >
+                            <X size={16} />
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        onClick={() => {
+                          setTeamData({
+                            ...teamData,
+                            batters: {
+                              ...teamData.batters,
+                              lineup: [...teamData.batters.lineup, '']
+                            }
+                          });
+                        }}
+                        className="w-full py-2 border-2 border-dashed border-gray-300 text-gray-500 rounded-lg hover:border-indigo-300 hover:text-indigo-600 transition-colors"
+                      >
+                        + 선발 타자 추가
+                      </button>
+                    </div>
+                    
+                    {/* 후보 타자 */}
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium text-gray-700">후보 타자</label>
+                      {teamData.batters.bench.map((batter, index) => (
+                        <div key={index} className="flex gap-2">
+                          <input
+                            type="text"
+                            value={batter}
+                            onChange={(e) => {
+                              const newBench = [...teamData.batters.bench];
+                              newBench[index] = e.target.value;
+                              setTeamData({
+                                ...teamData,
+                                batters: { ...teamData.batters, bench: newBench }
+                              });
+                            }}
+                            placeholder={`후보 타자 ${index + 1}`}
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                          />
+                          <button
+                            onClick={() => {
+                              const newBench = teamData.batters.bench.filter((_, i) => i !== index);
+                              setTeamData({
+                                ...teamData,
+                                batters: { ...teamData.batters, bench: newBench }
+                              });
+                            }}
+                            className="px-2 py-2 text-red-500 hover:bg-red-50 rounded-lg"
+                          >
+                            <X size={16} />
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        onClick={() => {
+                          setTeamData({
+                            ...teamData,
+                            batters: {
+                              ...teamData.batters,
+                              bench: [...teamData.batters.bench, '']
+                            }
+                          });
+                        }}
+                        className="w-full py-2 border-2 border-dashed border-gray-300 text-gray-500 rounded-lg hover:border-indigo-300 hover:text-indigo-600 transition-colors"
+                      >
+                        + 후보 타자 추가
+                      </button>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
                   <button onClick={() => setIsTeamModalOpen(false)} className="px-5 py-2.5 text-gray-600 hover:bg-gray-100 rounded-xl font-medium transition-colors">닫기</button>
-                  <button className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 font-bold shadow-sm transition-all hover:shadow-md flex items-center gap-2">
-                    <Save size={18} /> 저장하기
+                  <button 
+                    onClick={async () => {
+                      try {
+                        const response = await fetch('https://api.zask.kr/api/team', {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                          },
+                          credentials: 'include', // 쿠키 포함
+                          body: JSON.stringify({ teamData }),
+                        });
+                        
+                        if (response.ok) {
+                          alert('팀 정보가 백엔드에 저장되었습니다!');
+                          setIsTeamModalOpen(false);
+                        } else {
+                          alert('저장 실패: ' + response.statusText);
+                        }
+                      } catch (error) {
+                        console.error('팀 데이터 저장 실패:', error);
+                        alert('저장 중 오류가 발생했습니다.');
+                      }
+                    }}
+                    className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 font-bold shadow-sm transition-all hover:shadow-md flex items-center gap-2"
+                  >
+                    <Save size={18} /> 백엔드에 저장하기
                   </button>
                 </div>
               </div>
