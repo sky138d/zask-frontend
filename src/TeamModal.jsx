@@ -1,8 +1,13 @@
 import React, { useState } from 'react';
-import { X, Save, ChevronDown } from 'lucide-react';
+import { X, Save, ChevronDown, Search } from 'lucide-react';
 
-const positions = ['SP1', 'SP2', 'SP3', 'SP4', 'SP5', 'RP1', 'RP2', 'RP3', 'RP4', 'RP5', 'RP6', 'DH', 'C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF'];
-const pitcherPositions = ['SP1', 'SP2', 'SP3', 'SP4', 'SP5', 'RP1', 'RP2', 'RP3', 'RP4', 'RP5', 'RP6'];
+const cardTypes = ['골든글러브', '시그니처', '국가대표', '임팩트', '라이브 올스타', '라이브', '시즌'];
+const upgradeOptions = Array.from({ length: 10 }, (_, i) => i + 1);
+const trainingOptions = Array.from({ length: 25 }, (_, i) => i + 1);
+const awakeningOptions = Array.from({ length: 9 }, (_, i) => i + 1);
+
+const positions = ['SP1', 'SP2', 'SP3', 'SP4', 'SP5', 'CP', 'RP1', 'RP2', 'RP3', 'RP4', 'RP5', 'RP6', 'DH', 'C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF'];
+const pitcherPositions = ['SP1', 'SP2', 'SP3', 'SP4', 'SP5', 'CP', 'RP1', 'RP2', 'RP3', 'RP4', 'RP5', 'RP6'];
 const batterPositions = ['DH', 'C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF'];
 
 export default function TeamModal({ isOpen, onClose, teamData, setTeamData, onSave, session, selectedTeamId, teams }) {
@@ -34,13 +39,13 @@ export default function TeamModal({ isOpen, onClose, teamData, setTeamData, onSa
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl w-full max-w-6xl max-h-[90vh] overflow-y-auto p-6 shadow-2xl">
+      <div className="bg-white rounded-2xl w-full max-w-6xl max-h-[90vh] overflow-y-auto p-6 shadow-2xl scrollbar-hide">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-2xl font-bold text-gray-800">{currentTeam?.name} - 팀 정보 관리</h2>
             <p className="text-sm text-gray-500 mt-1">👋 {session?.name} 구단주님, 모든 선수 정보를 입력해주세요.</p>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors shrink-0">
             <X size={24} className="text-gray-400" />
           </button>
         </div>
@@ -90,8 +95,15 @@ export default function TeamModal({ isOpen, onClose, teamData, setTeamData, onSa
                   />
                 ))}
               </div>
-              {/* 우측: 불펜투수 RP1~6 */}
+              {/* 우측: CP + 불펜투수 RP1~6 */}
               <div className="space-y-3">
+                <PlayerCard
+                  position="CP"
+                  player={teamData.players['CP'] || {}}
+                  onPlayerChange={handlePlayerChange}
+                  isExpanded={expandedPosition === 'CP'}
+                  onToggle={() => setExpandedPosition(expandedPosition === 'CP' ? null : 'CP')}
+                />
                 {['RP1', 'RP2', 'RP3', 'RP4', 'RP5', 'RP6'].map(pos => (
                   <PlayerCard
                     key={pos}
@@ -156,107 +168,82 @@ function PlayerCard({ position, player, onPlayerChange, isExpanded, onToggle }) 
           <p className="font-bold text-gray-800">{position}</p>
           <p className="text-sm text-gray-600">{player.name || '미입력'}</p>
         </div>
-        <ChevronDown size={20} className={`text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+        <ChevronDown size={20} className={`text-gray-400 transition-transform shrink-0 ${isExpanded ? 'rotate-180' : ''}`} />
       </button>
 
       {/* 확장형 입력 폼 */}
       {isExpanded && (
-        <div className="p-4 space-y-3 border-t border-gray-200 bg-white">
+        <div className="p-4 space-y-4 border-t border-gray-200 bg-white max-h-96 overflow-y-auto scrollbar-hide">
+          {/* 선수명 + 카드종류 */}
           <div className="grid grid-cols-2 gap-3">
-            <InputField
+            <SearchableInput
               label="선수명"
               value={player.name || ''}
               onChange={(v) => onPlayerChange(position, 'name', v)}
-              placeholder="선수명 입력"
+              placeholder="선수명 검색"
+              type="player"
             />
-            <InputField
+            <SelectField
               label="카드 종류"
               value={player.cardType || ''}
               onChange={(v) => onPlayerChange(position, 'cardType', v)}
-              placeholder="예: SS, S"
+              options={cardTypes}
             />
+          </div>
+
+          {/* 연도 + 강화단계 */}
+          <div className="grid grid-cols-2 gap-3">
             <InputField
               label="연도"
               value={player.year || ''}
               onChange={(v) => onPlayerChange(position, 'year', v)}
-              placeholder="예: 2024, I"
+              placeholder="예: 2024"
+              disabled={player.cardType === '임팩트'}
             />
-            <InputField
+            <SelectField
               label="강화단계"
-              type="number"
               value={player.upgradeLevel || ''}
               onChange={(v) => onPlayerChange(position, 'upgradeLevel', v)}
+              options={upgradeOptions}
             />
-            <InputField
+          </div>
+
+          {/* 훈련단계 + 각성단계 */}
+          <div className="grid grid-cols-2 gap-3">
+            <SelectField
               label="훈련단계"
-              type="number"
               value={player.trainingLevel || ''}
               onChange={(v) => onPlayerChange(position, 'trainingLevel', v)}
+              options={trainingOptions}
             />
-            <InputField
+            <SelectField
               label="각성단계"
-              type="number"
               value={player.awakeningLevel || ''}
               onChange={(v) => onPlayerChange(position, 'awakeningLevel', v)}
+              options={awakeningOptions}
             />
           </div>
 
-          <div className="border-t pt-3">
-            <p className="text-sm font-semibold text-gray-700 mb-2">스킬</p>
-            <div className="grid grid-cols-3 gap-2">
-              <InputField
-                label="스킬1"
-                value={player.skill1 || ''}
-                onChange={(v) => onPlayerChange(position, 'skill1', v)}
-                placeholder="스킬명"
+          {/* 스킬 */}
+          <div className="border-t pt-4">
+            <p className="text-sm font-semibold text-gray-700 mb-3">스킬</p>
+            <div className="space-y-3">
+              <SkillField
+                label="스킬 1"
+                skillValue={player.skill1 || ''}
+                onSkillChange={(v) => onPlayerChange(position, 'skill1', v)}
               />
-              <InputField
-                label="스킬2"
-                value={player.skill2 || ''}
-                onChange={(v) => onPlayerChange(position, 'skill2', v)}
-                placeholder="스킬명"
+              <SkillField
+                label="스킬 2"
+                skillValue={player.skill2 || ''}
+                onSkillChange={(v) => onPlayerChange(position, 'skill2', v)}
               />
-              <InputField
-                label="스킬3"
-                value={player.skill3 || ''}
-                onChange={(v) => onPlayerChange(position, 'skill3', v)}
-                placeholder="스킬명"
+              <SkillField
+                label="스킬 3"
+                skillValue={player.skill3 || ''}
+                onSkillChange={(v) => onPlayerChange(position, 'skill3', v)}
               />
             </div>
-          </div>
-
-          <div className="border-t pt-3">
-            <p className="text-sm font-semibold text-gray-700 mb-2">잠재력</p>
-            <div className="grid grid-cols-3 gap-2">
-              <InputField
-                label="잠재력1"
-                value={player.potential1 || ''}
-                onChange={(v) => onPlayerChange(position, 'potential1', v)}
-                placeholder="잠재력"
-              />
-              <InputField
-                label="잠재력2"
-                value={player.potential2 || ''}
-                onChange={(v) => onPlayerChange(position, 'potential2', v)}
-                placeholder="잠재력"
-              />
-              <InputField
-                label="잠재력3"
-                value={player.potential3 || ''}
-                onChange={(v) => onPlayerChange(position, 'potential3', v)}
-                placeholder="잠재력"
-              />
-            </div>
-          </div>
-
-          <div className="border-t pt-3">
-            <InputField
-              label="세트덱 스코어"
-              type="number"
-              value={player.playerSetDeckScore || ''}
-              onChange={(v) => onPlayerChange(position, 'playerSetDeckScore', v)}
-              placeholder="0"
-            />
           </div>
         </div>
       )}
@@ -264,17 +251,76 @@ function PlayerCard({ position, player, onPlayerChange, isExpanded, onToggle }) 
   );
 }
 
-function InputField({ label, value, onChange, placeholder, type = 'text' }) {
+function InputField({ label, value, onChange, placeholder, disabled = false }) {
   return (
     <div>
       <label className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
       <input
-        type={type}
+        type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+        disabled={disabled}
+        className={`w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${
+          disabled ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''
+        }`}
       />
+    </div>
+  );
+}
+
+function SelectField({ label, value, onChange, options }) {
+  return (
+    <div>
+      <label className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+      >
+        <option value="">선택</option>
+        {options.map(opt => (
+          <option key={opt} value={opt}>{opt}</option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+function SearchableInput({ label, value, onChange, placeholder, type }) {
+  // 추후 실제 검색 기능이 추가될 때 수정
+  return (
+    <div>
+      <label className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
+      <div className="relative">
+        <Search size={16} className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
+        <input
+          type="text"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          className="w-full pl-7 pr-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+        />
+      </div>
+    </div>
+  );
+}
+
+function SkillField({ label, skillValue, onSkillChange }) {
+  // 추후 스킬 데이터베이스 검색으로 변경될 부분
+  return (
+    <div>
+      <label className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
+      <div className="relative">
+        <Search size={16} className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
+        <input
+          type="text"
+          value={skillValue}
+          onChange={(e) => onSkillChange(e.target.value)}
+          placeholder="스킬 검색 (예: 파워, 정확도)"
+          className="w-full pl-7 pr-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+        />
+      </div>
     </div>
   );
 }
