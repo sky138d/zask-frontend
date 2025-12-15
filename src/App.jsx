@@ -45,12 +45,9 @@ const GameAIChatContent = () => {
   // ✨ 모달 상태 관리
   const [isTeamModalOpen, setIsTeamModalOpen] = useState(false);
   const [teamData, setTeamData] = useState({
-    totalSetDeckScore: 0,
-    totalOvr: '',
-    players: []
+    pitchers: { starting: [], relief: [] },
+    batters: { lineup: [], bench: [] }
   });
-  const [teamScore, setTeamScore] = useState('');
-  const [teamOvr, setTeamOvr] = useState('');
 
   // 팀 데이터 로드 (백엔드에서)
   useEffect(() => {
@@ -68,13 +65,7 @@ const GameAIChatContent = () => {
       if (response.ok) {
         const data = await response.json();
         if (data.team) {
-          setTeamData(data.team || {
-            totalSetDeckScore: 0,
-            totalOvr: '',
-            players: []
-          });
-          setTeamScore((data.team?.totalSetDeckScore || 0).toString());
-          setTeamOvr(data.team?.totalOvr || '');
+          setTeamData(data.team);
         }
       }
     } catch (error) {
@@ -82,12 +73,9 @@ const GameAIChatContent = () => {
     }
   };
 
-  // 팀 데이터 저장 (팀 전체 스탯 + 모든 선수 정보)
+  // 팀 데이터 저장
   const saveTeamData = async () => {
     try {
-      // players 배열에서 빈 항목 필터링
-      const validPlayers = (teamData.players || []).filter(p => p.name && p.position);
-      
       const response = await fetch(`${API_BASE_URL}/user/team`, {
         method: 'POST',
         credentials: 'include',
@@ -95,15 +83,13 @@ const GameAIChatContent = () => {
         body: JSON.stringify({
           totalSetDeckScore: parseInt(teamScore) || 0,
           totalOvr: teamOvr || null,
-          players: validPlayers
         }),
       });
       if (response.ok) {
         alert('팀 정보가 저장되었습니다!');
         setIsTeamModalOpen(false);
       } else {
-        const err = await response.json();
-        alert('저장 실패: ' + (err.error || response.statusText));
+        alert('저장 실패: ' + response.statusText);
       }
     } catch (error) {
       console.error('팀 데이터 저장 실패:', error);
@@ -592,361 +578,267 @@ const GameAIChatContent = () => {
           </>
         )}
 
-        {/* ✨ 내 팀 관리 모달 */}
+        {/* ✨ 내 팀 관리 모달 (UI만 구현됨) */}
         {isTeamModalOpen && (
           <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-            <div className="bg-white rounded-2xl w-full max-w-6xl max-h-[90vh] overflow-y-auto p-8 shadow-2xl relative animate-fade-in-up">
+            <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[85vh] overflow-y-auto p-6 shadow-2xl relative animate-fade-in-up">
               <button onClick={() => setIsTeamModalOpen(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 p-1 hover:bg-gray-100 rounded-full transition-colors"><X size={24} /></button>
               
-              <h2 className="text-3xl font-bold mb-2 flex items-center gap-2 text-gray-800">
+              <h2 className="text-2xl font-bold mb-6 flex items-center gap-2 text-gray-800">
                 <Save className="text-indigo-600" /> 
                 내 팀 정보 관리
               </h2>
-              <p className="text-gray-600 mb-6">각 선수의 정보를 입력하고 팀 전체 점수를 설정하세요</p>
               
-              <div className="space-y-8">
-                {/* 팀 전체 스탯 */}
-                <div className="bg-gradient-to-r from-indigo-50 to-blue-50 p-6 rounded-xl border border-indigo-100">
-                  <h3 className="text-lg font-semibold text-gray-800 mb-4">📊 팀 전체 스탯</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">팀 전체 세트덱 스코어</label>
-                      <input
-                        type="number"
-                        value={teamScore}
-                        onChange={(e) => setTeamScore(e.target.value)}
-                        placeholder="예: 95000"
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                      />
+              <div className="space-y-6">
+                <div className="p-4 bg-indigo-50 border border-indigo-100 rounded-xl text-sm text-indigo-800 flex items-start gap-3">
+                  <div className="bg-white p-1.5 rounded-full shadow-sm"><User size={16} className="text-indigo-600"/></div>
+                  <div>
+                    <p className="font-bold text-lg mb-1">👋 안녕하세요, {session?.user?.name} 구단주님!</p>
+                    <p>이곳에 저장된 팀 정보는 AI가 답변할 때 자동으로 참고합니다. 정확하게 입력할수록 더 좋은 조언을 받을 수 있습니다.</p>
+                  </div>
+                </div>
+                
+                {/* 팀 정보 입력 폼 */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* 투수 라인업 */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                      <span className="text-2xl">⚾️</span> 투수 라인업
+                    </h3>
+                    
+                    {/* 선발 투수 */}
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium text-gray-700">선발 투수</label>
+                      {teamData.pitchers.starting.map((pitcher, index) => (
+                        <div key={index} className="flex gap-2">
+                          <input
+                            type="text"
+                            value={pitcher}
+                            onChange={(e) => {
+                              const newStarting = [...teamData.pitchers.starting];
+                              newStarting[index] = e.target.value;
+                              setTeamData({
+                                ...teamData,
+                                pitchers: { ...teamData.pitchers, starting: newStarting }
+                              });
+                            }}
+                            placeholder={`선발 투수 ${index + 1}`}
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                          />
+                          <button
+                            onClick={() => {
+                              const newStarting = teamData.pitchers.starting.filter((_, i) => i !== index);
+                              setTeamData({
+                                ...teamData,
+                                pitchers: { ...teamData.pitchers, starting: newStarting }
+                              });
+                            }}
+                            className="px-2 py-2 text-red-500 hover:bg-red-50 rounded-lg"
+                          >
+                            <X size={16} />
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        onClick={() => {
+                          setTeamData({
+                            ...teamData,
+                            pitchers: {
+                              ...teamData.pitchers,
+                              starting: [...teamData.pitchers.starting, '']
+                            }
+                          });
+                        }}
+                        className="w-full py-2 border-2 border-dashed border-gray-300 text-gray-500 rounded-lg hover:border-indigo-300 hover:text-indigo-600 transition-colors"
+                      >
+                        + 선발 투수 추가
+                      </button>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">전체 OVR</label>
-                      <input
-                        type="text"
-                        value={teamOvr}
-                        onChange={(e) => setTeamOvr(e.target.value)}
-                        placeholder="예: 85.5"
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                      />
+                    
+                    {/* 불펜 투수 */}
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium text-gray-700">불펜 투수</label>
+                      {teamData.pitchers.relief.map((pitcher, index) => (
+                        <div key={index} className="flex gap-2">
+                          <input
+                            type="text"
+                            value={pitcher}
+                            onChange={(e) => {
+                              const newRelief = [...teamData.pitchers.relief];
+                              newRelief[index] = e.target.value;
+                              setTeamData({
+                                ...teamData,
+                                pitchers: { ...teamData.pitchers, relief: newRelief }
+                              });
+                            }}
+                            placeholder={`불펜 투수 ${index + 1}`}
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                          />
+                          <button
+                            onClick={() => {
+                              const newRelief = teamData.pitchers.relief.filter((_, i) => i !== index);
+                              setTeamData({
+                                ...teamData,
+                                pitchers: { ...teamData.pitchers, relief: newRelief }
+                              });
+                            }}
+                            className="px-2 py-2 text-red-500 hover:bg-red-50 rounded-lg"
+                          >
+                            <X size={16} />
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        onClick={() => {
+                          setTeamData({
+                            ...teamData,
+                            pitchers: {
+                              ...teamData.pitchers,
+                              relief: [...teamData.pitchers.relief, '']
+                            }
+                          });
+                        }}
+                        className="w-full py-2 border-2 border-dashed border-gray-300 text-gray-500 rounded-lg hover:border-indigo-300 hover:text-indigo-600 transition-colors"
+                      >
+                        + 불펜 투수 추가
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {/* 타자 라인업 */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                      <span className="text-2xl">🦁</span> 타자 라인업
+                    </h3>
+                    
+                    {/* 선발 타자 */}
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium text-gray-700">선발 타자</label>
+                      {teamData.batters.lineup.map((batter, index) => (
+                        <div key={index} className="flex gap-2">
+                          <input
+                            type="text"
+                            value={batter}
+                            onChange={(e) => {
+                              const newLineup = [...teamData.batters.lineup];
+                              newLineup[index] = e.target.value;
+                              setTeamData({
+                                ...teamData,
+                                batters: { ...teamData.batters, lineup: newLineup }
+                              });
+                            }}
+                            placeholder={`타자 ${index + 1}`}
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                          />
+                          <button
+                            onClick={() => {
+                              const newLineup = teamData.batters.lineup.filter((_, i) => i !== index);
+                              setTeamData({
+                                ...teamData,
+                                batters: { ...teamData.batters, lineup: newLineup }
+                              });
+                            }}
+                            className="px-2 py-2 text-red-500 hover:bg-red-50 rounded-lg"
+                          >
+                            <X size={16} />
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        onClick={() => {
+                          setTeamData({
+                            ...teamData,
+                            batters: {
+                              ...teamData.batters,
+                              lineup: [...teamData.batters.lineup, '']
+                            }
+                          });
+                        }}
+                        className="w-full py-2 border-2 border-dashed border-gray-300 text-gray-500 rounded-lg hover:border-indigo-300 hover:text-indigo-600 transition-colors"
+                      >
+                        + 선발 타자 추가
+                      </button>
+                    </div>
+                    
+                    {/* 후보 타자 */}
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium text-gray-700">후보 타자</label>
+                      {teamData.batters.bench.map((batter, index) => (
+                        <div key={index} className="flex gap-2">
+                          <input
+                            type="text"
+                            value={batter}
+                            onChange={(e) => {
+                              const newBench = [...teamData.batters.bench];
+                              newBench[index] = e.target.value;
+                              setTeamData({
+                                ...teamData,
+                                batters: { ...teamData.batters, bench: newBench }
+                              });
+                            }}
+                            placeholder={`후보 타자 ${index + 1}`}
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                          />
+                          <button
+                            onClick={() => {
+                              const newBench = teamData.batters.bench.filter((_, i) => i !== index);
+                              setTeamData({
+                                ...teamData,
+                                batters: { ...teamData.batters, bench: newBench }
+                              });
+                            }}
+                            className="px-2 py-2 text-red-500 hover:bg-red-50 rounded-lg"
+                          >
+                            <X size={16} />
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        onClick={() => {
+                          setTeamData({
+                            ...teamData,
+                            batters: {
+                              ...teamData.batters,
+                              bench: [...teamData.batters.bench, '']
+                            }
+                          });
+                        }}
+                        className="w-full py-2 border-2 border-dashed border-gray-300 text-gray-500 rounded-lg hover:border-indigo-300 hover:text-indigo-600 transition-colors"
+                      >
+                        + 후보 타자 추가
+                      </button>
                     </div>
                   </div>
                 </div>
 
-                {/* 선수 정보 입력 - 테이블 형식 */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-gray-800">⚾️ 선수 명단</h3>
-                  
-                  {/* 선발 투수 */}
-                  <fieldset className="border border-blue-200 rounded-lg p-4 bg-blue-50">
-                    <legend className="text-sm font-semibold text-blue-900 px-3">선발 투수 (SP1~SP5)</legend>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="border-b border-blue-200">
-                            <th className="text-left px-2 py-2 font-medium text-blue-900">포지션</th>
-                            <th className="text-left px-2 py-2 font-medium text-blue-900">선수명</th>
-                            <th className="text-left px-2 py-2 font-medium text-blue-900">카드종류</th>
-                            <th className="text-left px-2 py-2 font-medium text-blue-900">연도</th>
-                            <th className="text-left px-2 py-2 font-medium text-blue-900">강화/훈련/각성</th>
-                            <th className="text-left px-2 py-2 font-medium text-blue-900">스킬</th>
-                            <th className="text-left px-2 py-2 font-medium text-blue-900">잠재력</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {['SP1', 'SP2', 'SP3', 'SP4', 'SP5'].map((pos) => {
-                            const player = (teamData.players || []).find(p => p.position === pos) || {
-                              position: pos,
-                              name: '',
-                              cardType: '',
-                              year: '',
-                              upgradeLevel: 0,
-                              trainingLevel: 0,
-                              awakeningLevel: 0,
-                              skill1: '',
-                              skill2: '',
-                              skill3: '',
-                              potential1: '',
-                              potential2: '',
-                              potential3: ''
-                            };
-                            
-                            return (
-                              <tr key={pos} className="border-b border-blue-100 hover:bg-blue-100/50">
-                                <td className="px-2 py-2 font-medium">{pos}</td>
-                                <td className="px-2 py-2"><input type="text" value={player.name} onChange={(e) => {
-                                  const others = (teamData.players || []).filter(p => p.position !== pos);
-                                  setTeamData({ ...teamData, players: [...others, {...player, name: e.target.value}] });
-                                }} className="w-full px-2 py-1 border rounded" placeholder="선수명" /></td>
-                                <td className="px-2 py-2"><input type="text" value={player.cardType} onChange={(e) => {
-                                  const others = (teamData.players || []).filter(p => p.position !== pos);
-                                  setTeamData({ ...teamData, players: [...others, {...player, cardType: e.target.value}] });
-                                }} className="w-full px-2 py-1 border rounded text-xs" placeholder="카드" /></td>
-                                <td className="px-2 py-2"><input type="text" value={player.year} onChange={(e) => {
-                                  const others = (teamData.players || []).filter(p => p.position !== pos);
-                                  setTeamData({ ...teamData, players: [...others, {...player, year: e.target.value}] });
-                                }} className="w-full px-2 py-1 border rounded text-xs" placeholder="연도" /></td>
-                                <td className="px-2 py-2 text-xs"><div className="flex gap-1">
-                                  <input type="number" value={player.upgradeLevel} onChange={(e) => {
-                                    const others = (teamData.players || []).filter(p => p.position !== pos);
-                                    setTeamData({ ...teamData, players: [...others, {...player, upgradeLevel: parseInt(e.target.value) || 0}] });
-                                  }} className="w-10 px-1 py-1 border rounded" placeholder="강" />
-                                  <input type="number" value={player.trainingLevel} onChange={(e) => {
-                                    const others = (teamData.players || []).filter(p => p.position !== pos);
-                                    setTeamData({ ...teamData, players: [...others, {...player, trainingLevel: parseInt(e.target.value) || 0}] });
-                                  }} className="w-10 px-1 py-1 border rounded" placeholder="훈" />
-                                  <input type="number" value={player.awakeningLevel} onChange={(e) => {
-                                    const others = (teamData.players || []).filter(p => p.position !== pos);
-                                    setTeamData({ ...teamData, players: [...others, {...player, awakeningLevel: parseInt(e.target.value) || 0}] });
-                                  }} className="w-10 px-1 py-1 border rounded" placeholder="각" />
-                                </div></td>
-                                <td className="px-2 py-2 text-xs"><div className="flex flex-col gap-0.5">
-                                  <input type="text" value={player.skill1} onChange={(e) => {
-                                    const others = (teamData.players || []).filter(p => p.position !== pos);
-                                    setTeamData({ ...teamData, players: [...others, {...player, skill1: e.target.value}] });
-                                  }} className="w-full px-1 py-0.5 border rounded" placeholder="S1" />
-                                  <input type="text" value={player.skill2} onChange={(e) => {
-                                    const others = (teamData.players || []).filter(p => p.position !== pos);
-                                    setTeamData({ ...teamData, players: [...others, {...player, skill2: e.target.value}] });
-                                  }} className="w-full px-1 py-0.5 border rounded" placeholder="S2" />
-                                  <input type="text" value={player.skill3} onChange={(e) => {
-                                    const others = (teamData.players || []).filter(p => p.position !== pos);
-                                    setTeamData({ ...teamData, players: [...others, {...player, skill3: e.target.value}] });
-                                  }} className="w-full px-1 py-0.5 border rounded" placeholder="S3" />
-                                </div></td>
-                                <td className="px-2 py-2 text-xs"><div className="flex flex-col gap-0.5">
-                                  <input type="text" value={player.potential1} onChange={(e) => {
-                                    const others = (teamData.players || []).filter(p => p.position !== pos);
-                                    setTeamData({ ...teamData, players: [...others, {...player, potential1: e.target.value}] });
-                                  }} className="w-full px-1 py-0.5 border rounded" placeholder="P1" />
-                                  <input type="text" value={player.potential2} onChange={(e) => {
-                                    const others = (teamData.players || []).filter(p => p.position !== pos);
-                                    setTeamData({ ...teamData, players: [...others, {...player, potential2: e.target.value}] });
-                                  }} className="w-full px-1 py-0.5 border rounded" placeholder="P2" />
-                                  <input type="text" value={player.potential3} onChange={(e) => {
-                                    const others = (teamData.players || []).filter(p => p.position !== pos);
-                                    setTeamData({ ...teamData, players: [...others, {...player, potential3: e.target.value}] });
-                                  }} className="w-full px-1 py-0.5 border rounded" placeholder="P3" />
-                                </div></td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </fieldset>
-
-                  {/* 불펜 투수 */}
-                  <fieldset className="border border-purple-200 rounded-lg p-4 bg-purple-50">
-                    <legend className="text-sm font-semibold text-purple-900 px-3">불펜 투수 (RP1~RP6)</legend>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="border-b border-purple-200">
-                            <th className="text-left px-2 py-2 font-medium text-purple-900">포지션</th>
-                            <th className="text-left px-2 py-2 font-medium text-purple-900">선수명</th>
-                            <th className="text-left px-2 py-2 font-medium text-purple-900">카드종류</th>
-                            <th className="text-left px-2 py-2 font-medium text-purple-900">연도</th>
-                            <th className="text-left px-2 py-2 font-medium text-purple-900">강화/훈련/각성</th>
-                            <th className="text-left px-2 py-2 font-medium text-purple-900">스킬</th>
-                            <th className="text-left px-2 py-2 font-medium text-purple-900">잠재력</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {['RP1', 'RP2', 'RP3', 'RP4', 'RP5', 'RP6'].map((pos) => {
-                            const player = (teamData.players || []).find(p => p.position === pos) || {
-                              position: pos,
-                              name: '',
-                              cardType: '',
-                              year: '',
-                              upgradeLevel: 0,
-                              trainingLevel: 0,
-                              awakeningLevel: 0,
-                              skill1: '',
-                              skill2: '',
-                              skill3: '',
-                              potential1: '',
-                              potential2: '',
-                              potential3: ''
-                            };
-                            
-                            return (
-                              <tr key={pos} className="border-b border-purple-100 hover:bg-purple-100/50">
-                                <td className="px-2 py-2 font-medium">{pos}</td>
-                                <td className="px-2 py-2"><input type="text" value={player.name} onChange={(e) => {
-                                  const others = (teamData.players || []).filter(p => p.position !== pos);
-                                  setTeamData({ ...teamData, players: [...others, {...player, name: e.target.value}] });
-                                }} className="w-full px-2 py-1 border rounded" placeholder="선수명" /></td>
-                                <td className="px-2 py-2"><input type="text" value={player.cardType} onChange={(e) => {
-                                  const others = (teamData.players || []).filter(p => p.position !== pos);
-                                  setTeamData({ ...teamData, players: [...others, {...player, cardType: e.target.value}] });
-                                }} className="w-full px-2 py-1 border rounded text-xs" placeholder="카드" /></td>
-                                <td className="px-2 py-2"><input type="text" value={player.year} onChange={(e) => {
-                                  const others = (teamData.players || []).filter(p => p.position !== pos);
-                                  setTeamData({ ...teamData, players: [...others, {...player, year: e.target.value}] });
-                                }} className="w-full px-2 py-1 border rounded text-xs" placeholder="연도" /></td>
-                                <td className="px-2 py-2 text-xs"><div className="flex gap-1">
-                                  <input type="number" value={player.upgradeLevel} onChange={(e) => {
-                                    const others = (teamData.players || []).filter(p => p.position !== pos);
-                                    setTeamData({ ...teamData, players: [...others, {...player, upgradeLevel: parseInt(e.target.value) || 0}] });
-                                  }} className="w-10 px-1 py-1 border rounded" placeholder="강" />
-                                  <input type="number" value={player.trainingLevel} onChange={(e) => {
-                                    const others = (teamData.players || []).filter(p => p.position !== pos);
-                                    setTeamData({ ...teamData, players: [...others, {...player, trainingLevel: parseInt(e.target.value) || 0}] });
-                                  }} className="w-10 px-1 py-1 border rounded" placeholder="훈" />
-                                  <input type="number" value={player.awakeningLevel} onChange={(e) => {
-                                    const others = (teamData.players || []).filter(p => p.position !== pos);
-                                    setTeamData({ ...teamData, players: [...others, {...player, awakeningLevel: parseInt(e.target.value) || 0}] });
-                                  }} className="w-10 px-1 py-1 border rounded" placeholder="각" />
-                                </div></td>
-                                <td className="px-2 py-2 text-xs"><div className="flex flex-col gap-0.5">
-                                  <input type="text" value={player.skill1} onChange={(e) => {
-                                    const others = (teamData.players || []).filter(p => p.position !== pos);
-                                    setTeamData({ ...teamData, players: [...others, {...player, skill1: e.target.value}] });
-                                  }} className="w-full px-1 py-0.5 border rounded" placeholder="S1" />
-                                  <input type="text" value={player.skill2} onChange={(e) => {
-                                    const others = (teamData.players || []).filter(p => p.position !== pos);
-                                    setTeamData({ ...teamData, players: [...others, {...player, skill2: e.target.value}] });
-                                  }} className="w-full px-1 py-0.5 border rounded" placeholder="S2" />
-                                  <input type="text" value={player.skill3} onChange={(e) => {
-                                    const others = (teamData.players || []).filter(p => p.position !== pos);
-                                    setTeamData({ ...teamData, players: [...others, {...player, skill3: e.target.value}] });
-                                  }} className="w-full px-1 py-0.5 border rounded" placeholder="S3" />
-                                </div></td>
-                                <td className="px-2 py-2 text-xs"><div className="flex flex-col gap-0.5">
-                                  <input type="text" value={player.potential1} onChange={(e) => {
-                                    const others = (teamData.players || []).filter(p => p.position !== pos);
-                                    setTeamData({ ...teamData, players: [...others, {...player, potential1: e.target.value}] });
-                                  }} className="w-full px-1 py-0.5 border rounded" placeholder="P1" />
-                                  <input type="text" value={player.potential2} onChange={(e) => {
-                                    const others = (teamData.players || []).filter(p => p.position !== pos);
-                                    setTeamData({ ...teamData, players: [...others, {...player, potential2: e.target.value}] });
-                                  }} className="w-full px-1 py-0.5 border rounded" placeholder="P2" />
-                                  <input type="text" value={player.potential3} onChange={(e) => {
-                                    const others = (teamData.players || []).filter(p => p.position !== pos);
-                                    setTeamData({ ...teamData, players: [...others, {...player, potential3: e.target.value}] });
-                                  }} className="w-full px-1 py-0.5 border rounded" placeholder="P3" />
-                                </div></td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </fieldset>
-
-                  {/* 타자 */}
-                  <fieldset className="border border-amber-200 rounded-lg p-4 bg-amber-50">
-                    <legend className="text-sm font-semibold text-amber-900 px-3">타자 (DH, C, 1B~RF)</legend>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="border-b border-amber-200">
-                            <th className="text-left px-2 py-2 font-medium text-amber-900">포지션</th>
-                            <th className="text-left px-2 py-2 font-medium text-amber-900">선수명</th>
-                            <th className="text-left px-2 py-2 font-medium text-amber-900">카드종류</th>
-                            <th className="text-left px-2 py-2 font-medium text-amber-900">연도</th>
-                            <th className="text-left px-2 py-2 font-medium text-amber-900">강화/훈련/각성</th>
-                            <th className="text-left px-2 py-2 font-medium text-amber-900">스킬</th>
-                            <th className="text-left px-2 py-2 font-medium text-amber-900">잠재력</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {['DH', 'C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF'].map((pos) => {
-                            const player = (teamData.players || []).find(p => p.position === pos) || {
-                              position: pos,
-                              name: '',
-                              cardType: '',
-                              year: '',
-                              upgradeLevel: 0,
-                              trainingLevel: 0,
-                              awakeningLevel: 0,
-                              skill1: '',
-                              skill2: '',
-                              skill3: '',
-                              potential1: '',
-                              potential2: '',
-                              potential3: ''
-                            };
-                            
-                            return (
-                              <tr key={pos} className="border-b border-amber-100 hover:bg-amber-100/50">
-                                <td className="px-2 py-2 font-medium">{pos}</td>
-                                <td className="px-2 py-2"><input type="text" value={player.name} onChange={(e) => {
-                                  const others = (teamData.players || []).filter(p => p.position !== pos);
-                                  setTeamData({ ...teamData, players: [...others, {...player, name: e.target.value}] });
-                                }} className="w-full px-2 py-1 border rounded" placeholder="선수명" /></td>
-                                <td className="px-2 py-2"><input type="text" value={player.cardType} onChange={(e) => {
-                                  const others = (teamData.players || []).filter(p => p.position !== pos);
-                                  setTeamData({ ...teamData, players: [...others, {...player, cardType: e.target.value}] });
-                                }} className="w-full px-2 py-1 border rounded text-xs" placeholder="카드" /></td>
-                                <td className="px-2 py-2"><input type="text" value={player.year} onChange={(e) => {
-                                  const others = (teamData.players || []).filter(p => p.position !== pos);
-                                  setTeamData({ ...teamData, players: [...others, {...player, year: e.target.value}] });
-                                }} className="w-full px-2 py-1 border rounded text-xs" placeholder="연도" /></td>
-                                <td className="px-2 py-2 text-xs"><div className="flex gap-1">
-                                  <input type="number" value={player.upgradeLevel} onChange={(e) => {
-                                    const others = (teamData.players || []).filter(p => p.position !== pos);
-                                    setTeamData({ ...teamData, players: [...others, {...player, upgradeLevel: parseInt(e.target.value) || 0}] });
-                                  }} className="w-10 px-1 py-1 border rounded" placeholder="강" />
-                                  <input type="number" value={player.trainingLevel} onChange={(e) => {
-                                    const others = (teamData.players || []).filter(p => p.position !== pos);
-                                    setTeamData({ ...teamData, players: [...others, {...player, trainingLevel: parseInt(e.target.value) || 0}] });
-                                  }} className="w-10 px-1 py-1 border rounded" placeholder="훈" />
-                                  <input type="number" value={player.awakeningLevel} onChange={(e) => {
-                                    const others = (teamData.players || []).filter(p => p.position !== pos);
-                                    setTeamData({ ...teamData, players: [...others, {...player, awakeningLevel: parseInt(e.target.value) || 0}] });
-                                  }} className="w-10 px-1 py-1 border rounded" placeholder="각" />
-                                </div></td>
-                                <td className="px-2 py-2 text-xs"><div className="flex flex-col gap-0.5">
-                                  <input type="text" value={player.skill1} onChange={(e) => {
-                                    const others = (teamData.players || []).filter(p => p.position !== pos);
-                                    setTeamData({ ...teamData, players: [...others, {...player, skill1: e.target.value}] });
-                                  }} className="w-full px-1 py-0.5 border rounded" placeholder="S1" />
-                                  <input type="text" value={player.skill2} onChange={(e) => {
-                                    const others = (teamData.players || []).filter(p => p.position !== pos);
-                                    setTeamData({ ...teamData, players: [...others, {...player, skill2: e.target.value}] });
-                                  }} className="w-full px-1 py-0.5 border rounded" placeholder="S2" />
-                                  <input type="text" value={player.skill3} onChange={(e) => {
-                                    const others = (teamData.players || []).filter(p => p.position !== pos);
-                                    setTeamData({ ...teamData, players: [...others, {...player, skill3: e.target.value}] });
-                                  }} className="w-full px-1 py-0.5 border rounded" placeholder="S3" />
-                                </div></td>
-                                <td className="px-2 py-2 text-xs"><div className="flex flex-col gap-0.5">
-                                  <input type="text" value={player.potential1} onChange={(e) => {
-                                    const others = (teamData.players || []).filter(p => p.position !== pos);
-                                    setTeamData({ ...teamData, players: [...others, {...player, potential1: e.target.value}] });
-                                  }} className="w-full px-1 py-0.5 border rounded" placeholder="P1" />
-                                  <input type="text" value={player.potential2} onChange={(e) => {
-                                    const others = (teamData.players || []).filter(p => p.position !== pos);
-                                    setTeamData({ ...teamData, players: [...others, {...player, potential2: e.target.value}] });
-                                  }} className="w-full px-1 py-0.5 border rounded" placeholder="P2" />
-                                  <input type="text" value={player.potential3} onChange={(e) => {
-                                    const others = (teamData.players || []).filter(p => p.position !== pos);
-                                    setTeamData({ ...teamData, players: [...others, {...player, potential3: e.target.value}] });
-                                  }} className="w-full px-1 py-0.5 border rounded" placeholder="P3" />
-                                </div></td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </fieldset>
-                </div>
-
-                {/* 저장 버튼 */}
-                <div className="flex justify-end gap-3 pt-6 border-t border-gray-200">
+                <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+                  <button onClick={() => setIsTeamModalOpen(false)} className="px-5 py-2.5 text-gray-600 hover:bg-gray-100 rounded-xl font-medium transition-colors">닫기</button>
                   <button 
-                    onClick={() => setIsTeamModalOpen(false)} 
-                    className="px-6 py-2.5 text-gray-700 hover:bg-gray-100 rounded-lg font-medium transition-colors"
+                    onClick={async () => {
+                      try {
+                        const response = await fetch('https://api.zask.kr/api/team', {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                          },
+                          credentials: 'include', // 쿠키 포함
+                          body: JSON.stringify({ teamData }),
+                        });
+                        
+                        if (response.ok) {
+                          alert('팀 정보가 백엔드에 저장되었습니다!');
+                          setIsTeamModalOpen(false);
+                        } else {
+                          alert('저장 실패: ' + response.statusText);
+                        }
+                      } catch (error) {
+                        console.error('팀 데이터 저장 실패:', error);
+                        alert('저장 중 오류가 발생했습니다.');
+                      }
+                    }}
+                    className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 font-bold shadow-sm transition-all hover:shadow-md flex items-center gap-2"
                   >
-                    취소
-                  </button>
-                  <button 
-                    onClick={saveTeamData}
-                    className="px-8 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-semibold shadow-sm transition-all hover:shadow-md flex items-center gap-2"
-                  >
-                    <Save size={18} /> DB에 저장하기
+                    <Save size={18} /> 백엔드에 저장하기
                   </button>
                 </div>
               </div>
