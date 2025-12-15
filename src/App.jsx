@@ -726,3 +726,7 @@ const GameAIChatContent = () => {
     </div>
   );
 };
+
+export default function App() {
+  return <GameAIChatContent />;
+}
