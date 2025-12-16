@@ -384,8 +384,6 @@ function SearchableInput({ label, value, onChange, placeholder, type, onSelect, 
     const next = page + 1;
     setIsLoading(true);
     try {
-      const base = apiBaseUrl ? apiBaseUrl.replace(/\/+$/,'') : '';
-      const searchUrlBase = base ? `${base}/search/players` : `/api/search/players`;
       // subsequent loads should fetch +10 items
       const nextLimit = 10;
       const offset = suggestions.length;
