@@ -328,24 +328,8 @@ function SearchableInput({ label, value, onChange, placeholder, type, onSelect, 
           res = await fetch(searchUrl, { credentials: 'include' });
           if (!res.ok) throw new Error('server non-ok');
         } catch (err) {
-          console.warn('primary search failed, trying local backend fallback:', err);
-          // try localhost backend directly
-          try {
-            const localUrl = `http://localhost:3000/api/search/players?q=${encodeURIComponent(inputValue)}&limit=${limit}&page=1`;
-            res = await fetch(localUrl, { credentials: 'include' });
-            if (!res.ok) throw new Error('local backend non-ok');
-          } catch (err2) {
-            console.warn('local backend also failed, trying Supabase REST fallback', err2);
-            // Supabase REST fallback (if environment key present)
-            const supabaseUrl = (window?.__env__?.NEXT_PUBLIC_SUPABASE_URL) || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-            const anon = (window?.__env__?.NEXT_PUBLIC_SUPABASE_ANON_KEY) || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-            if (supabaseUrl && anon) {
-              const restUrl = `${supabaseUrl.replace(/\/+$/,'')}/rest/v1/cards_minimal?select=name,type,subtype,team,year,position,ovr&name=ilike.*${encodeURIComponent(inputValue)}*&limit=${limit}`;
-              res = await fetch(restUrl, { headers: { apikey: anon, Authorization: `Bearer ${anon}`, Accept: 'application/json' } });
-            } else {
-              throw new Error('no supabase fallback keys available');
-            }
-          }
+          console.warn('primary search failed:', err);
+          throw err;
         }
         const json = await res.json();
         const items = Array.isArray(json) ? json : (json.results || []);
@@ -394,22 +378,8 @@ function SearchableInput({ label, value, onChange, placeholder, type, onSelect, 
         res = await fetch(searchUrl, { credentials: 'include' });
         if (!res.ok) throw new Error('server non-ok');
       } catch (err) {
-        console.warn('loadMore primary failed, trying local fallback', err);
-        try {
-          const localUrl = `http://localhost:3000/api/search/players?q=${encodeURIComponent((typeof value === 'string' ? value : '') || '')}&limit=${nextLimit}&offset=${offset}`;
-          res = await fetch(localUrl, { credentials: 'include' });
-          if (!res.ok) throw new Error('local non-ok');
-        } catch (err2) {
-          console.warn('local loadMore failed, trying Supabase REST fallback', err2);
-          const supabaseUrl = (window?.__env__?.NEXT_PUBLIC_SUPABASE_URL) || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-          const anon = (window?.__env__?.NEXT_PUBLIC_SUPABASE_ANON_KEY) || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-          if (supabaseUrl && anon) {
-            const restUrl = `${supabaseUrl.replace(/\/+$/,'')}/rest/v1/cards_minimal?select=name,type,subtype,team,year,position,ovr&name=ilike.*${encodeURIComponent((typeof value === 'string' ? value : '') || '')}*&limit=${nextLimit}&offset=${offset}`;
-            res = await fetch(restUrl, { headers: { apikey: anon, Authorization: `Bearer ${anon}`, Accept: 'application/json' } });
-          } else {
-            throw new Error('no supabase fallback');
-          }
-        }
+        console.warn('loadMore failed:', err);
+        throw err;
       }
       const json = await res.json();
       const items = Array.isArray(json) ? json : (json.results || []);
