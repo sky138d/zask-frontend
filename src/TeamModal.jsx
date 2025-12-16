@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { X, Save, ChevronDown, Search } from 'lucide-react';
 
 const cardTypes = ['골든글러브', '시그니처', '국가대표', '임팩트', '라이브 올스타', '라이브', '시즌'];
@@ -10,7 +10,7 @@ const positions = ['SP1', 'SP2', 'SP3', 'SP4', 'SP5', 'CP', 'RP1', 'RP2', 'RP3',
 const pitcherPositions = ['SP1', 'SP2', 'SP3', 'SP4', 'SP5', 'CP', 'RP1', 'RP2', 'RP3', 'RP4', 'RP5', 'RP6'];
 const batterPositions = ['DH', 'C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF'];
 
-export default function TeamModal({ isOpen, onClose, teamData, setTeamData, onSave, session, selectedTeamId, teams }) {
+export default function TeamModal({ isOpen, onClose, teamData, setTeamData, onSave, session, selectedTeamId, teams, apiBaseUrl }) {
   const [expandedPosition, setExpandedPosition] = useState(null);
 
   if (!isOpen) return null;
@@ -180,8 +180,19 @@ function PlayerCard({ position, player, onPlayerChange, isExpanded, onToggle }) 
               label="선수명"
               value={player.name || ''}
               onChange={(v) => onPlayerChange(position, 'name', v)}
+              onSelect={(p) => {
+                if (!p) return;
+                onPlayerChange(position, 'name', p.name || '');
+                if (p.type) onPlayerChange(position, 'cardType', p.type);
+                if (p.subtype) onPlayerChange(position, 'subtype', p.subtype);
+                // set year (may be null) - for Impact (IM/임팩트) we'll disable the input
+                onPlayerChange(position, 'year', p.year || '');
+                if (p.position) onPlayerChange(position, 'position', p.position);
+                if (p.ovr) onPlayerChange(position, 'ovr', p.ovr);
+              }}
               placeholder="선수명 검색"
               type="player"
+              apiBaseUrl={apiBaseUrl}
             />
             <SelectField
               label="카드 종류"
@@ -198,7 +209,7 @@ function PlayerCard({ position, player, onPlayerChange, isExpanded, onToggle }) 
               value={player.year || ''}
               onChange={(v) => onPlayerChange(position, 'year', v)}
               placeholder="예: 2024"
-              disabled={player.cardType === '임팩트'}
+              disabled={['임팩트','IM'].includes(player.cardType)}
             />
             <SelectField
               label="강화단계"
@@ -287,8 +298,146 @@ function SelectField({ label, value, onChange, options }) {
   );
 }
 
-function SearchableInput({ label, value, onChange, placeholder, type }) {
-  // 추후 실제 검색 기능이 추가될 때 수정
+function SearchableInput({ label, value, onChange, placeholder, type, onSelect, apiBaseUrl }) {
+  const [isDropdownVisible, setDropdownVisible] = useState(false);
+  const [suggestions, setSuggestions] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [debounceTimer, setDebounceTimer] = useState(null);
+  const [page, setPage] = useState(1);
+  const [limit] = useState(30); // default page size (30)
+  const [hasMore, setHasMore] = useState(false);
+  const listRef = useRef(null);
+
+  const handleInputChange = (inputValue) => {
+    onChange(inputValue);
+    if (debounceTimer) clearTimeout(debounceTimer);
+    if (!inputValue) {
+      setSuggestions([]);
+      setDropdownVisible(false);
+      return;
+    }
+    setIsLoading(true);
+    const t = setTimeout(async () => {
+      try {
+        const base = apiBaseUrl ? apiBaseUrl.replace(/\/+$/,'') : '';
+        const searchUrlBase = base ? `${base}/search/players` : `/api/search/players`;
+        const searchUrl = `${searchUrlBase}?q=${encodeURIComponent(inputValue)}&limit=${limit}&page=1`;
+        let res;
+        try {
+          res = await fetch(searchUrl, { credentials: 'include' });
+          if (!res.ok) throw new Error('server non-ok');
+        } catch (err) {
+          console.warn('primary search failed, trying local backend fallback:', err);
+          // try localhost backend directly
+          try {
+            const localUrl = `http://localhost:3000/api/search/players?q=${encodeURIComponent(inputValue)}&limit=${limit}&page=1`;
+            res = await fetch(localUrl, { credentials: 'include' });
+            if (!res.ok) throw new Error('local backend non-ok');
+          } catch (err2) {
+            console.warn('local backend also failed, trying Supabase REST fallback', err2);
+            // Supabase REST fallback (if environment key present)
+            const supabaseUrl = (window?.__env__?.NEXT_PUBLIC_SUPABASE_URL) || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+            const anon = (window?.__env__?.NEXT_PUBLIC_SUPABASE_ANON_KEY) || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+            if (supabaseUrl && anon) {
+              const restUrl = `${supabaseUrl.replace(/\/+$/,'')}/rest/v1/cards_minimal?select=name,type,subtype,team,year,position,ovr&name=ilike.*${encodeURIComponent(inputValue)}*&limit=${limit}`;
+              res = await fetch(restUrl, { headers: { apikey: anon, Authorization: `Bearer ${anon}`, Accept: 'application/json' } });
+            } else {
+              throw new Error('no supabase fallback keys available');
+            }
+          }
+        }
+        const json = await res.json();
+        const items = Array.isArray(json) ? json : (json.results || []);
+        setSuggestions(items);
+        setPage(1);
+        setHasMore(items.length === limit);
+        setError(null);
+        setDropdownVisible(true);
+      } catch (err) {
+        console.error('search error', err);
+        setSuggestions([]);
+        setError(err?.message || String(err));
+        setDropdownVisible(true);
+      } finally {
+        setIsLoading(false);
+      }
+    }, 250);
+    setDebounceTimer(t);
+  };
+
+  const handleOptionSelect = (option) => {
+    onChange(option.name);
+    if (onSelect) onSelect(option);
+    setDropdownVisible(false);
+  };
+
+  // Debug logging helper
+  useEffect(() => {
+    // nothing, just placeholder for debug hook
+  }, []);
+
+
+  const loadMore = async () => {
+    if (!onSelect && !apiBaseUrl) return;
+    const next = page + 1;
+    setIsLoading(true);
+    try {
+      const base = apiBaseUrl ? apiBaseUrl.replace(/\/+$/,'') : '';
+      const searchUrlBase = base ? `${base}/search/players` : `/api/search/players`;
+      // subsequent loads should fetch +10 items
+      const nextLimit = 10;
+      const offset = suggestions.length;
+      const searchUrl = `${searchUrlBase}?q=${encodeURIComponent((typeof value === 'string' ? value : '') || '')}&limit=${nextLimit}&offset=${offset}`;
+      let res;
+      try {
+        res = await fetch(searchUrl, { credentials: 'include' });
+        if (!res.ok) throw new Error('server non-ok');
+      } catch (err) {
+        console.warn('loadMore primary failed, trying local fallback', err);
+        try {
+          const localUrl = `http://localhost:3000/api/search/players?q=${encodeURIComponent((typeof value === 'string' ? value : '') || '')}&limit=${nextLimit}&offset=${offset}`;
+          res = await fetch(localUrl, { credentials: 'include' });
+          if (!res.ok) throw new Error('local non-ok');
+        } catch (err2) {
+          console.warn('local loadMore failed, trying Supabase REST fallback', err2);
+          const supabaseUrl = (window?.__env__?.NEXT_PUBLIC_SUPABASE_URL) || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+          const anon = (window?.__env__?.NEXT_PUBLIC_SUPABASE_ANON_KEY) || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+          if (supabaseUrl && anon) {
+            const restUrl = `${supabaseUrl.replace(/\/+$/,'')}/rest/v1/cards_minimal?select=name,type,subtype,team,year,position,ovr&name=ilike.*${encodeURIComponent((typeof value === 'string' ? value : '') || '')}*&limit=${nextLimit}&offset=${offset}`;
+            res = await fetch(restUrl, { headers: { apikey: anon, Authorization: `Bearer ${anon}`, Accept: 'application/json' } });
+          } else {
+            throw new Error('no supabase fallback');
+          }
+        }
+      }
+      const json = await res.json();
+      const items = Array.isArray(json) ? json : (json.results || []);
+      setSuggestions(prev => [...prev, ...items]);
+      setPage(next);
+      setHasMore(items.length === nextLimit);
+    } catch (e) {
+      console.error('load more error', e);
+      setError(e?.message || String(e));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Infinite scroll: attach scroll listener to dropdown list
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+    const onScroll = () => {
+      if (!hasMore || isLoading) return;
+      if (el.scrollTop + el.clientHeight >= el.scrollHeight - 40) {
+        loadMore();
+      }
+    };
+    el.addEventListener('scroll', onScroll);
+    return () => el.removeEventListener('scroll', onScroll);
+  }, [listRef, hasMore, isLoading]);
+
   return (
     <div>
       <label className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
@@ -297,10 +446,35 @@ function SearchableInput({ label, value, onChange, placeholder, type }) {
         <input
           type="text"
           value={value}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(e) => handleInputChange(e.target.value)}
           placeholder={placeholder}
           className="w-full pl-7 pr-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
         />
+        {isDropdownVisible && (
+          <ul ref={listRef} className="absolute z-10 bg-white border border-gray-300 rounded shadow-lg mt-1 w-full max-h-56 overflow-y-auto">
+            {isLoading && <li className="px-3 py-2 text-sm text-gray-500">검색 중...</li>}
+            {error && <li className="px-3 py-2 text-sm text-red-500">오류: {error}</li>}
+            {suggestions.map((opt, idx) => (
+              <li
+                key={idx}
+                onClick={() => handleOptionSelect(opt)}
+                className="px-3 py-2 hover:bg-indigo-100 cursor-pointer text-sm text-gray-700 flex justify-between"
+              >
+                <div>
+                  <div className="font-medium">{opt.name}</div>
+                  <div className="text-xs text-gray-500">{opt.position} · {opt.team} · {opt.year || ''}</div>
+                </div>
+                <div className="text-xs text-gray-400">{opt.type}</div>
+              </li>
+            ))}
+            {(!isLoading && !error && suggestions.length === 0) && (
+              <li className="px-3 py-2 text-sm text-gray-500">검색 결과가 없습니다</li>
+            )}
+            {hasMore && (
+              <li onClick={loadMore} className="px-3 py-2 hover:bg-indigo-50 cursor-pointer text-sm text-indigo-600 text-center">더 보기...</li>
+            )}
+          </ul>
+        )}
       </div>
     </div>
   );

@@ -185,8 +185,8 @@ const GameAIChatContent = () => {
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
 
-  // ✅ 백엔드 주소 (프로덕션 URL)
-  const API_BASE_URL = 'https://api.zask.kr/api';
+  // ✅ 백엔드 주소 (프로덕션 URL). During local dev, point to local Next backend
+  const API_BASE_URL = (typeof window !== 'undefined' && window.location.hostname === 'localhost') ? 'http://localhost:3000/api' : 'https://api.zask.kr/api';
   const GOOGLE_CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID'; // Vercel 환경 변수에서 가져올 예정
 
   // ✨ [초기화] 브라우저 저장소에서 채팅 기록 불러오기
@@ -720,6 +720,7 @@ const GameAIChatContent = () => {
           session={session}
           selectedTeamId={selectedTeamId}
           teams={teams}
+          apiBaseUrl={API_BASE_URL}
         />
 
       </main>
