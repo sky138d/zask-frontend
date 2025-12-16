@@ -8,6 +8,21 @@
   </head>
   <body>
     <div id="root"></div>
+    <!-- global apiBaseUrl fallback for older bundles or third-party scripts that reference bare `apiBaseUrl` -->
+    <script>
+      (function(){
+        try {
+          var base = (location && location.hostname === 'localhost') ? 'http://localhost:3000/api' : ((window && window.__env__ && window.__env__.VITE_API_BASE_URL) || (location && location.origin + '/api'));
+          window.apiBaseUrl = base;
+          // Also create a bare global identifier for non-module scripts
+          try { self.apiBaseUrl = base; } catch(e) { /* ignore */ }
+          // expose to debug
+          if (window.console && window.console.debug) window.console.debug('[index] apiBaseUrl global set:', base);
+        } catch(e) {
+          // silent
+        }
+      })();
+    </script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
