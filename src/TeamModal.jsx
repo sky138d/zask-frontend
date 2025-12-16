@@ -10,7 +10,7 @@ const positions = ['SP1', 'SP2', 'SP3', 'SP4', 'SP5', 'CP', 'RP1', 'RP2', 'RP3',
 const pitcherPositions = ['SP1', 'SP2', 'SP3', 'SP4', 'SP5', 'CP', 'RP1', 'RP2', 'RP3', 'RP4', 'RP5', 'RP6'];
 const batterPositions = ['DH', 'C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF'];
 
-export default function TeamModal({ isOpen, onClose, teamData, setTeamData, onSave, session, selectedTeamId, teams, apiBaseUrl }) {
+export default function TeamModal({ isOpen, onClose, teamData, setTeamData, onSave, session, selectedTeamId, teams, apiBaseUrl = (typeof window !== 'undefined' && window.location?.hostname === 'localhost' ? 'http://localhost:3000/api' : (import.meta.env?.VITE_API_BASE_URL || (typeof window !== 'undefined' ? window.location.origin + '/api' : '/api'))) }) {
   const [expandedPosition, setExpandedPosition] = useState(null);
 
   if (!isOpen) return null;
@@ -298,7 +298,7 @@ function SelectField({ label, value, onChange, options }) {
   );
 }
 
-function SearchableInput({ label, value, onChange, placeholder, type, onSelect, apiBaseUrl }) {
+function SearchableInput({ label, value, onChange, placeholder, type, onSelect, apiBaseUrl = '' }) {
   const [isDropdownVisible, setDropdownVisible] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -320,7 +320,8 @@ function SearchableInput({ label, value, onChange, placeholder, type, onSelect, 
     setIsLoading(true);
     const t = setTimeout(async () => {
       try {
-        const base = apiBaseUrl ? apiBaseUrl.replace(/\/+$/,'') : '';
+        const base = apiBaseUrl ? apiBaseUrl.replace(/\/+$/,'') : (import.meta.env?.VITE_API_BASE_URL || (typeof window !== 'undefined' && window.location.hostname === 'localhost' ? 'http://localhost:3000/api' : (typeof window !== 'undefined' ? window.location.origin + '/api' : '/api')));
+        if (import.meta.env.DEV) console.debug('[SearchableInput] search base:', base);
         const searchUrlBase = base ? `${base}/search/players` : `/api/search/players`;
         const searchUrl = `${searchUrlBase}?q=${encodeURIComponent(inputValue)}&limit=${limit}&page=1`;
         let res;
@@ -337,8 +338,8 @@ function SearchableInput({ label, value, onChange, placeholder, type, onSelect, 
           } catch (err2) {
             console.warn('local backend also failed, trying Supabase REST fallback', err2);
             // Supabase REST fallback (if environment key present)
-            const supabaseUrl = (window?.__env__?.NEXT_PUBLIC_SUPABASE_URL) || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-            const anon = (window?.__env__?.NEXT_PUBLIC_SUPABASE_ANON_KEY) || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+            const supabaseUrl = (window?.__env__?.NEXT_PUBLIC_SUPABASE_URL) || import.meta.env?.VITE_SUPABASE_URL || '';
+            const anon = (window?.__env__?.NEXT_PUBLIC_SUPABASE_ANON_KEY) || import.meta.env?.VITE_SUPABASE_ANON_KEY || '';
             if (supabaseUrl && anon) {
               const restUrl = `${supabaseUrl.replace(/\/+$/,'')}/rest/v1/cards_minimal?select=name,type,subtype,team,year,position,ovr&name=ilike.*${encodeURIComponent(inputValue)}*&limit=${limit}`;
               res = await fetch(restUrl, { headers: { apikey: anon, Authorization: `Bearer ${anon}`, Accept: 'application/json' } });
@@ -388,6 +389,9 @@ function SearchableInput({ label, value, onChange, placeholder, type, onSelect, 
       // subsequent loads should fetch +10 items
       const nextLimit = 10;
       const offset = suggestions.length;
+      const base = apiBaseUrl ? apiBaseUrl.replace(/\/+$/,'') : (import.meta.env?.VITE_API_BASE_URL || (typeof window !== 'undefined' && window.location.hostname === 'localhost' ? 'http://localhost:3000/api' : (typeof window !== 'undefined' ? window.location.origin + '/api' : '/api')));
+      if (import.meta.env.DEV) console.debug('[SearchableInput] loadMore base:', base);
+      const searchUrlBase = base ? `${base}/search/players` : `/api/search/players`;
       const searchUrl = `${searchUrlBase}?q=${encodeURIComponent((typeof value === 'string' ? value : '') || '')}&limit=${nextLimit}&offset=${offset}`;
       let res;
       try {
@@ -401,8 +405,8 @@ function SearchableInput({ label, value, onChange, placeholder, type, onSelect, 
           if (!res.ok) throw new Error('local non-ok');
         } catch (err2) {
           console.warn('local loadMore failed, trying Supabase REST fallback', err2);
-          const supabaseUrl = (window?.__env__?.NEXT_PUBLIC_SUPABASE_URL) || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-          const anon = (window?.__env__?.NEXT_PUBLIC_SUPABASE_ANON_KEY) || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+          const supabaseUrl = (window?.__env__?.NEXT_PUBLIC_SUPABASE_URL) || import.meta.env?.VITE_SUPABASE_URL || '';
+          const anon = (window?.__env__?.NEXT_PUBLIC_SUPABASE_ANON_KEY) || import.meta.env?.VITE_SUPABASE_ANON_KEY || '';
           if (supabaseUrl && anon) {
             const restUrl = `${supabaseUrl.replace(/\/+$/,'')}/rest/v1/cards_minimal?select=name,type,subtype,team,year,position,ovr&name=ilike.*${encodeURIComponent((typeof value === 'string' ? value : '') || '')}*&limit=${nextLimit}&offset=${offset}`;
             res = await fetch(restUrl, { headers: { apikey: anon, Authorization: `Bearer ${anon}`, Accept: 'application/json' } });
