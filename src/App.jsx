@@ -711,26 +711,22 @@ const GameAIChatContent = () => {
         )}
 
         {/* ✨ 새로운 팀 관리 모달 */}
-        <ErrorBoundary>
-          <TeamModal
-            isOpen={isTeamModalOpen}
-            onClose={() => setIsTeamModalOpen(false)}
-            teamData={teamData}
-            setTeamData={setTeamData}
-            onSave={saveTeamData}
-            session={session}
-            selectedTeamId={selectedTeamId}
-            teams={teams}
-            apiBaseUrl={API_BASE_URL}
-          />
-        </ErrorBoundary>
+        <TeamModal
+          isOpen={isTeamModalOpen}
+          onClose={() => setIsTeamModalOpen(false)}
+          teamData={teamData}
+          setTeamData={setTeamData}
+          onSave={saveTeamData}
+          session={session}
+          selectedTeamId={selectedTeamId}
+          teams={teams}
+          apiBaseUrl={API_BASE_URL}
+        />
 
       </main>
     </div>
   );
 };
-
-import ErrorBoundary from './ErrorBoundary';
 
 export default function App() {
   return <GameAIChatContent />;
